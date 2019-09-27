@@ -1,5 +1,7 @@
+#Librerias importantes
 import time
 import redis
+#Variable para llamar las funciones de redis
 conn = redis.Redis(host='localhost', port=6379, db=0)
 
 #Prepara nuestras constantes.
@@ -27,7 +29,9 @@ def article_vote(conn, user, article):
     #Si el usuario no ha votado antes por este artículo, incremente la
     #  puntuación del artículo y el recuento de votos.
     if conn.sadd('voted:' + article_id, user):
+        #LA funcion zincrby (Para zset) incrementa el puntaje (score) del articulo en la clave score:
         conn.zincrby('score:', article, VOTE_SCORE)
+        #hincrby es una funcuon similar a zincrby para Hash
         conn.hincrby(article, 'votes', 1)
 
 #Función para crear un articulo
@@ -51,7 +55,7 @@ def new_article(conn, user, title, link):
     conn.zadd('time:', {article: now}) #representa la fecha de publicacion del articulo
     return article_id #Como respuesta de la operacion regresa la clave del articulo
 
-#Funcion de reacion del Usuario
+#Funcion de creación del Usuario
 def new_user(conn, name, email):
     user_id = email #usaremos el email como id unico, dado de que no puede haber diferentes usuarios con el mismo correo
     register = "user:"
@@ -62,7 +66,6 @@ def new_user(conn, name, email):
         conn.hmset(user, {
         'name': name,
         'email': email,
-        'registraton_date': user
         })
         
         return user_id
@@ -70,24 +73,26 @@ def new_user(conn, name, email):
         print("Usuario ya existe")
         return user_id
 
-    
+#Regresa la cantidad de articulos de manera descendente que le pidamos
+def get_articles(conn, mostrar, order='score:'):
 
-    
-
-    
-
-
-
-ARTICLES_PER_PAGE = 25
-def get_articles(conn, page, order='score:'):
-    start = (page-1) * ARTICLES_PER_PAGE
-    end = start + ARTICLES_PER_PAGE - 1
+    #empieza desde el primer articulo
+    start = 0
+    # finaliza despues de la cantidad de articulos que le dijimos que muestre
+    end = start + mostrar - 1
+    # En ids se guarda de manera ordenada, dado que los zset guardan los datos de manera ascendente es necesariop aplicar zrevrange ara que nos 
+    #muestre los datos de manera descendente
     ids = conn.zrevrange(order, start, end)
+    #crea la lista donde se guardará la información de los articulos
     articles = []
-    
+    #crea un ciclo en el cual in tomará el valor de cada valor en ids(o sea article:1,article:2,...,etc)
     for id in ids:
+        #guardará toda la informacion en article_data 
         article_data = conn.hgetall(id)
-
+        #registra el id en article_data[] con su mismo nombre
         article_data['id'] = id
+        #agrega la informacion de cada id 
         articles.append(article_data)  
+        #Regresa la lista con toda la info de cada articulo del ranking
     return articles
+
